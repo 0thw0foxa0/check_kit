@@ -6,12 +6,13 @@
 #include <ostream> // только для некоторых компиляторов
 
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+
 
 int main(int argc,char* argv[])
 {
 
 #ifdef _WIN32 // если windows
+#include <windows.h>
     SetConsoleOutputCP(CP_UTF8); // вывод utf 8
     SetConsoleCP(CP_UTF8); // ввод utf 8
 #endif
