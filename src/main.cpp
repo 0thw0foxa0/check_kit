@@ -5,16 +5,18 @@
 #include <iostream>
 #include <ostream> // только для некоторых компиляторов
 
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 
 int main(int argc,char* argv[])
 {
 
-#ifdef _WIN32 // если windows
-#include <windows.h>
-    SetConsoleOutputCP(CP_UTF8); // вывод utf 8
-    SetConsoleCP(CP_UTF8); // ввод utf 8
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8); // вывод utf-8 для windows
+    SetConsoleCP(CP_UTF8); // ввод utf-8 для windows
 #endif
     std::string docPath=getFilePath(argv[0],"document"),kitPath=getFilePath(argv[0],"kit");
   
