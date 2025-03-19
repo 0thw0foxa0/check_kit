@@ -1,0 +1,10 @@
+^C:\USERS\VLADB\PRJ\CHECK_KIT\BUILD\CMAKEFILES\04D27628842762DE5D31F22816AB2B13\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/vladb/prj/check_kit -BC:/Users/vladb/prj/check_kit/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/vladb/prj/check_kit/build/check_kit.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

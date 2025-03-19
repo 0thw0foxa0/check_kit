@@ -1,0 +1,3 @@
+C:/Users/vladb/prj/check_kit/build/CMakeFiles/check_kit.dir
+C:/Users/vladb/prj/check_kit/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/vladb/prj/check_kit/build/CMakeFiles/ZERO_CHECK.dir
