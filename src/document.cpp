@@ -8,7 +8,7 @@ bool Document::loadFromFile(std::string filename)
     std::ifstream file(filename);
     if(!file.is_open())
     {
-        std::cout<<"Файл: "<<filename<<"не открылся"<<std::endl;
+        std::cout<<"Не удалось открыть файл:  "<<filename<<std::endl;
         return false;
     }
     items.clear();

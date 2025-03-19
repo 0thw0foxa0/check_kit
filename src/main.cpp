@@ -16,8 +16,7 @@ int main(int argc,char* argv[])
     SetConsoleCP(CP_UTF8); // ввод utf 8
 #endif
     std::string docPath=getFilePath(argv[0],"document"),kitPath=getFilePath(argv[0],"kit");
-    std::cout<<"Путь к document: "<<docPath<<std::endl;
-    std::cout<<"Путь к kit: "<<kitPath<<std::endl;
+  
 
     Document doc;
     if(!doc.loadFromFile(docPath))return 1;
