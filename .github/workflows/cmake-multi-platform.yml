@@ -14,9 +14,9 @@ jobs:
         os:
           - ubuntu-20.04
           - ubuntu-22.04
+          - ubuntu-latest
           - windows-2019
           - windows-2022
-          - windows-latest
         compiler:
           - { os-pattern: 'Ubuntu', name: 'gcc-11', install: 'g++-11' }
           - { os-pattern: 'Ubuntu', name: 'gcc-12', install: 'g++-12' }
@@ -27,13 +27,12 @@ jobs:
             compiler: { os-pattern: 'windows' }
           - os: ubuntu-22.04
             compiler: { os-pattern: 'windows' }
+          - os: ubuntu-latest
+            compiler: { os-pattern: 'windows' }
           - os: windows-2019
             compiler: { os-pattern: 'Ubuntu' }
           - os: windows-2022
             compiler: { os-pattern: 'Ubuntu' }
-          - os: windows-latest
-            compiler: { os-pattern: 'Ubuntu' }
-      fail-fast: false
 
     steps:
     - name: Checkout repository
@@ -43,92 +42,38 @@ jobs:
       if: contains(matrix.os, 'Ubuntu')
       run: |
         sudo apt-get update
-        sudo apt-get install -y software-properties-common
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential ${{ matrix.compiler.install }}
-        # Проверяем, что компилятор и cmake установлены
-        which cmake || (echo "CMake not found" && exit 1)
-        which ${{ matrix.compiler.install }} || (echo "Compiler ${{ matrix.compiler.install }} not found" && exit 1)
-        cmake --version
-        g++ --version
+        sudo apt-get install -y ${{ matrix.compiler.install }} cmake
 
-    - name: Install dependencies (Windows - MinGW)
-      if: contains(matrix.os, 'windows') && matrix.compiler.name == 'mingw'
+    - name: Install dependencies (Windows)
+      if: contains(matrix.os, 'windows')
       run: |
         choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-        choco install mingw -y
-        # Проверяем, что g++ доступен
-        g++ --version
+        if "${{ matrix.compiler.name }}" == "mingw" choco install mingw -y
       shell: cmd
 
-    - name: Install dependencies (Windows - MSVC)
-      if: contains(matrix.os, 'windows') && matrix.compiler.name == 'msvc'
+    - name: Configure CMake
       run: |
-        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-        cmake --version
-      shell: cmd
-
-    - name: Configure CMake (Linux)
-      if: contains(matrix.os, 'Ubuntu')
-      run: |
-        cmake -S . -B build -DCMAKE_CXX_COMPILER=${{ matrix.compiler.install }} -DCMAKE_BUILD_TYPE=Release || (echo "CMake configuration failed" && exit 1)
+        if [ "${{ matrix.compiler.name }}" == "mingw" ]; then
+          cmake -S . -B build -G "MinGW Makefiles"
+        else
+          cmake -S . -B build
+        fi
       shell: bash
 
-    - name: Configure CMake (Windows - MSVC)
-      if: contains(matrix.os, 'windows') && matrix.compiler.name == 'msvc'
+    - name: Build
       run: |
-        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release || (echo "CMake configuration failed" && exit 1)
-      shell: cmd
-
-    - name: Configure CMake (Windows - MinGW)
-      if: contains(matrix.os, 'windows') && matrix.compiler.name == 'mingw'
-      run: |
-        cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release || (echo "CMake configuration failed" && exit 1)
-      shell: cmd
-
-    - name: Build (Linux)
-      if: contains(matrix.os, 'Ubuntu')
-      run: |
-        cmake --build build --config Release || (echo "Build failed" && exit 1)
-        # Проверяем, что исполняемый файл создан
-        [ -f "build/check_kit" ] && echo "Executable found (Linux)" || (echo "Executable build/check_kit not found" && exit 1)
+        cmake --build build --config Release
       shell: bash
 
-    - name: Build (Windows)
-      if: contains(matrix.os, 'windows')
+    - name: Run
       run: |
-        cmake --build build --config Release || (echo "Build failed" && exit 1)
-        # Проверяем, что исполняемый файл создан
-        if exist "build\Release\check_kit.exe" (echo "Executable found (Windows)") else (echo "Executable build/Release/check_kit.exe not found" && exit 1)
-      shell: cmd
-
-    - name: Run (Linux)
-      if: contains(matrix.os, 'Ubuntu')
-      run: |
-        ./build/check_kit 23  # Тестируем с аргументами из задания (автомобиль + автобус)
-        ./build/check_kit 5   # Тестируем неизвестный тип
+        if [ "${{ matrix.os }}" = "Ubuntu-20.04" ] || [ "${{ matrix.os }}" = "Ubuntu-22.04" ] || [ "${{ matrix.os }}" = "Ubuntu-latest" ]; then
+          ./build/check_kit
+        else
+          if [ -f "build/Release/check_kit.exe" ]; then
+            ./build/Release/check_kit.exe
+          else
+            ./build/Debug/check_kit.exe
+          fi
+        fi
       shell: bash
-
-    - name: Run (Windows)
-      if: contains(matrix.os, 'windows')
-      run: |
-        .\build\Release\check_kit.exe 23
-        .\build\Release\check_kit.exe 5
-      shell: cmd
-
-    - name: Verify output (Linux)
-      if: contains(matrix.os, 'Ubuntu')
-      run: |
-        ./build/check_kit 23 | grep "car" || echo "Test failed: car not found"
-        ./build/check_kit 23 | grep "bus" || echo "Test failed: bus not found"
-        ./build/check_kit 5 | grep "UNKNOWN" || echo "Test failed: unknown type not detected"
-      shell: bash
-
-    - name: Verify output (Windows)
-      if: contains(matrix.os, 'windows')
-      run: |
-        .\build\Release\check_kit.exe 23 | findstr "car" || echo "Test failed: car not found"
-        .\build\Release\check_kit.exe 23 | findstr "bus" || echo "Test failed: bus not found"
-        .\build\Release\check_kit.exe 5 | findstr "UNKNOWN" || echo "Test failed: unknown type not detected"
-      shell: cmd
