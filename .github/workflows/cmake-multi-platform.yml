@@ -86,7 +86,7 @@ jobs:
           if [ -f "build/Release/check_kit.exe" ]; then
             ./build/Release/check_kit.exe
           else
-            if[ -f "build/Debug/check_kit.exe" ]; then
+            if [ -f "build/Debug/check_kit.exe" ]; then
               ./build/Debug/check_kit.exe
             else
               ./build/check_kit.exe
