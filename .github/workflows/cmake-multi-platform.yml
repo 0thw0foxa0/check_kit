@@ -81,7 +81,7 @@ jobs:
 
     - name: Run
       run: |
-        if [ "${{ matrix.os }}" = "Ubuntu-20.04" ] || [ "${{ matrix.os }}" = "Ubuntu-22.04" ] || [ "${{ matrix.os }}" = "Ubuntu-latest" ]; then
+        if [ "${{ matrix.os }}" = "ubuntu-20.04" ] || [ "${{ matrix.os }}" = "ubuntu-22.04" ] || [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
           ./build/check_kit
         else
           if [ -f "build/Release/check_kit.exe" ]; then
