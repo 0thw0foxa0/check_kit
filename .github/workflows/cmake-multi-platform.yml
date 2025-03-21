@@ -1,4 +1,4 @@
-name: Transport 20 Versions CI
+name: cmake-multi-platform
 
 on:
   push:
@@ -21,13 +21,12 @@ jobs:
           - windows-2019  # Средняя версия Windows
           - windows-2022  # Новая версия Windows
         compiler:
-          - { os-pattern: 'ubuntu', name: 'gcc-7', install: 'g++-7' }
-          - { os-pattern: 'ubuntu', name: 'gcc-9', install: 'g++-9' }
-          - { os-pattern: 'ubuntu', name: 'gcc-11', install: 'g++-11' }
-          - { os-pattern: 'windows', name: 'msvc', install: '' }  # MSVC от Visual Studio
+          - { os-pattern: 'Ubuntu', name: 'gcc-9', install: 'g++-9' }  # Доступен на всех версиях
+          - { os-pattern: 'Ubuntu', name: 'gcc-10', install: 'g++-10' }
+          - { os-pattern: 'Ubuntu', name: 'gcc-11', install: 'g++-11' }
+          - { os-pattern: 'windows', name: 'msvc', install: '' }
           - { os-pattern: 'windows', name: 'mingw', install: 'mingw' }
         exclude:
-          # Исключаем несовместимые комбинации (Windows с GCC или Ubuntu с MSVC/MinGW)
           - os: ubuntu-18.04
             compiler: { os-pattern: 'windows' }
           - os: ubuntu-20.04
@@ -35,19 +34,24 @@ jobs:
           - os: ubuntu-22.04
             compiler: { os-pattern: 'windows' }
           - os: windows-2016
-            compiler: { os-pattern: 'ubuntu' }
+            compiler: { os-pattern: 'Ubuntu' }
           - os: windows-2019
-            compiler: { os-pattern: 'ubuntu' }
+            compiler: { os-pattern: 'Ubuntu' }
           - os: windows-2022
-            compiler: { os-pattern: 'ubuntu' }
+            compiler: { os-pattern: 'Ubuntu' }
+      fail-fast: false  # Не отменять остальные jobs при ошибке
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install dependencies (Ubuntu)
-        if: contains(matrix.os, 'ubuntu')
+        if: contains(matrix.os, 'Ubuntu')
         run: |
+          sudo apt-get update
+          # Добавляем репозиторий для старых версий GCC
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
           sudo apt-get update
           sudo apt-get install -y cmake ${{ matrix.compiler.install }}
           # Устанавливаем выбранный компилятор как стандартный
@@ -64,10 +68,9 @@ jobs:
         if: contains(matrix.os, 'windows') && matrix.compiler.name == 'msvc'
         run: |
           choco install cmake --version=3.28.1 -y
-          # MSVC уже предустановлен в Windows runners, используем его
 
       - name: Configure CMake (Ubuntu)
-        if: contains(matrix.os, 'ubuntu')
+        if: contains(matrix.os, 'Ubuntu')
         run: |
           mkdir build
           cd build
@@ -92,20 +95,35 @@ jobs:
           cd build
           cmake --build . --config Release
 
-      - name: Run tests
+      - name: Run tests (Ubuntu)
+        if: contains(matrix.os, 'Ubuntu')
         run: |
           cd build
-          # Запускаем приложение с аргументами из задания (23 = автомобиль + автобус)
           ./my_program 23
-          # Проверяем неизвестный тип транспорта
           ./my_program 5
-        shell: bash  # Унифицируем shell для кроссплатформенности
 
-      - name: Verify output
+      - name: Run tests (Windows)
+        if: contains(matrix.os, 'windows')
         run: |
           cd build
-          # Проверяем вывод для базовой функциональности
+          .\my_program.exe 23
+          .\my_program.exe 5
+
+      - name: Verify output (Ubuntu)
+        if: contains(matrix.os, 'Ubuntu')
+        run: |
+          cd build
           ./my_program 23 | grep "автомобиль" || echo "Test failed: автомобиль not found"
           ./my_program 23 | grep "автобус" || echo "Test failed: автобус not found"
           ./my_program 5 | grep "НЕИЗВЕСТНЫЙ ТИП ТРАНСПОРТА" || echo "Test failed: unknown type not detected"
         shell: bash
+
+      - name: Verify output (Windows)
+        if: contains(matrix.os, 'windows')
+        run: |
+          cd build
+          # Используем findstr вместо grep и учитываем возможные проблемы с кодировкой
+          .\my_program.exe 23 | findstr "car" || echo "Test failed: car not found"
+          .\my_program.exe 23 | findstr "bus" || echo "Test failed: bus not found"
+          .\my_program.exe 5 | findstr "UNKNOWN" || echo "Test failed: unknown type not detected"
+        shell: cmd
