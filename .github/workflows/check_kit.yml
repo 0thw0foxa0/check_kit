@@ -1,0 +1,47 @@
+name: Check Kit CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        compiler: [g++, clang++]
+        exclude:
+          - os: windows-latest
+            compiler: clang++  # Clang сложнее на Windows, исключаем
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y g++ clang cmake
+
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install cmake -y
+      shell: cmd
+
+    - name: Configure CMake
+      run: |
+        cmake -S . -B build -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+
+    - name: Build
+      run: |
+        cmake --build build --config Release
+
+    - name: Run
+      run: |
+        ./build/check_kit
+      shell: bash
