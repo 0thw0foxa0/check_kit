@@ -57,7 +57,6 @@ jobs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
         sudo apt-get update
         sudo apt-get install -y build-essential cmake g++-${{ matrix.compiler == 'gcc-11' && '11' || matrix.compiler == 'gcc-12' && '12' }}
-
     - name: Install dependencies (Windows)
       if: contains(matrix.os, 'windows')
       run: |
@@ -81,16 +80,16 @@ jobs:
 
     - name: Run
       run: |
-        if: contains(matrix.os, 'ubuntu'); then
+        if [ "${{ matrix.os }}" = "ubuntu-20.04" ] || [ "${{ matrix.os }}" = "ubuntu-22.04" ] || [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
           ./build/check_kit
         else
           if [ -f "build/Release/check_kit.exe" ]; then
             ./build/Release/check_kit.exe
           else
-           if [ -f "build/Debug/check_kit.exe" ]; then
-            ./build/Debug/check_kit.exe
-        else
-            ./build/check_kit.exe
+            if[ -f "build/Debug/check_kit.exe" ]; then
+              ./build/Debug/check_kit.ex
+            else
+              ./build/check_kit.exe
             fi
           fi
         fi
