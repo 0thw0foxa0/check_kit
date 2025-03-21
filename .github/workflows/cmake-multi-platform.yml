@@ -21,7 +21,7 @@ jobs:
           - windows-2019  # Средняя версия Windows
           - windows-2022  # Новая версия Windows
         compiler:
-          - { os-pattern: 'Ubuntu', name: 'gcc-9', install: 'g++-9' }  # Доступен на всех версиях
+          - { os-pattern: 'Ubuntu', name: 'gcc-9', install: 'g++-9' }
           - { os-pattern: 'Ubuntu', name: 'gcc-10', install: 'g++-10' }
           - { os-pattern: 'Ubuntu', name: 'gcc-11', install: 'g++-11' }
           - { os-pattern: 'windows', name: 'msvc', install: '' }
@@ -39,7 +39,7 @@ jobs:
             compiler: { os-pattern: 'Ubuntu' }
           - os: windows-2022
             compiler: { os-pattern: 'Ubuntu' }
-      fail-fast: false  # Не отменять остальные jobs при ошибке
+      fail-fast: false
 
     steps:
       - name: Checkout code
@@ -49,20 +49,25 @@ jobs:
         if: contains(matrix.os, 'Ubuntu')
         run: |
           sudo apt-get update
-          # Добавляем репозиторий для старых версий GCC
           sudo apt-get install -y software-properties-common
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
           sudo apt-get update
-          sudo apt-get install -y cmake ${{ matrix.compiler.install }}
+          sudo apt-get install -y cmake build-essential ${{ matrix.compiler.install }}
+          # Проверяем, что компилятор установлен
+          which ${{ matrix.compiler.install }} || (echo "Compiler ${{ matrix.compiler.install }} not found" && exit 1)
           # Устанавливаем выбранный компилятор как стандартный
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/${{ matrix.compiler.name }} 100
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/${{ matrix.compiler.install }} 100
+          # Проверяем версию компилятора
+          g++ --version
 
       - name: Install dependencies (Windows - MinGW)
         if: contains(matrix.os, 'windows') && matrix.compiler.name == 'mingw'
         run: |
           choco install cmake --version=3.28.1 -y
           choco install mingw -y
+          # Проверяем, что g++ доступен
+          g++ --version
 
       - name: Install dependencies (Windows - MSVC)
         if: contains(matrix.os, 'windows') && matrix.compiler.name == 'msvc'
@@ -94,6 +99,9 @@ jobs:
         run: |
           cd build
           cmake --build . --config Release
+          # Проверяем, что исполняемый файл создан
+          if [ -f "my_program" ]; then echo "Executable found (Linux)"; fi
+          if [ -f "my_program.exe" ]; then echo "Executable found (Windows)"; fi
 
       - name: Run tests (Ubuntu)
         if: contains(matrix.os, 'Ubuntu')
@@ -106,6 +114,8 @@ jobs:
         if: contains(matrix.os, 'windows')
         run: |
           cd build
+          dir  # Для отладки: показываем содержимое папки
+          if not exist my_program.exe (echo "Executable not found" && exit 1)
           .\my_program.exe 23
           .\my_program.exe 5
 
@@ -113,16 +123,16 @@ jobs:
         if: contains(matrix.os, 'Ubuntu')
         run: |
           cd build
-          ./my_program 23 | grep "автомобиль" || echo "Test failed: автомобиль not found"
-          ./my_program 23 | grep "автобус" || echo "Test failed: автобус not found"
-          ./my_program 5 | grep "НЕИЗВЕСТНЫЙ ТИП ТРАНСПОРТА" || echo "Test failed: unknown type not detected"
+          # Предполагаем, что вывод на английском для тестов
+          ./my_program 23 | grep "car" || echo "Test failed: car not found"
+          ./my_program 23 | grep "bus" || echo "Test failed: bus not found"
+          ./my_program 5 | grep "UNKNOWN" || echo "Test failed: unknown type not detected"
         shell: bash
 
       - name: Verify output (Windows)
         if: contains(matrix.os, 'windows')
         run: |
           cd build
-          # Используем findstr вместо grep и учитываем возможные проблемы с кодировкой
           .\my_program.exe 23 | findstr "car" || echo "Test failed: car not found"
           .\my_program.exe 23 | findstr "bus" || echo "Test failed: bus not found"
           .\my_program.exe 5 | findstr "UNKNOWN" || echo "Test failed: unknown type not detected"
