@@ -18,21 +18,32 @@ jobs:
           - windows-2019
           - windows-2022
         compiler:
-          - { os-pattern: 'Ubuntu', name: 'gcc-11', install: 'g++-11' }
-          - { os-pattern: 'Ubuntu', name: 'gcc-12', install: 'g++-12' }
-          - { os-pattern: 'windows', name: 'msvc', install: '' }
-          - { os-pattern: 'windows', name: 'mingw', install: 'mingw' }
+          - gcc-11
+          - gcc-12
+          - msvc
+          - mingw
         exclude:
           - os: ubuntu-20.04
-            compiler: { os-pattern: 'windows' }
+            compiler: msvc
+          - os: ubuntu-20.04
+            compiler: mingw
           - os: ubuntu-22.04
-            compiler: { os-pattern: 'windows' }
+            compiler: msvc
+          - os: ubuntu-22.04
+            compiler: mingw
           - os: ubuntu-latest
-            compiler: { os-pattern: 'windows' }
+            compiler: msvc
+          - os: ubuntu-latest
+            compiler: mingw
           - os: windows-2019
-            compiler: { os-pattern: 'Ubuntu' }
+            compiler: gcc-11
+          - os: windows-2019
+            compiler: gcc-12
           - os: windows-2022
-            compiler: { os-pattern: 'Ubuntu' }
+            compiler: gcc-11
+          - os: windows-2022
+            compiler: gcc-12
+      fail-fast: false
 
     steps:
     - name: Checkout repository
@@ -42,18 +53,21 @@ jobs:
       if: contains(matrix.os, 'Ubuntu')
       run: |
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.compiler.install }} cmake
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake g++-${{ matrix.compiler == 'gcc-11' && '11' || matrix.compiler == 'gcc-12' && '12' }}
 
     - name: Install dependencies (Windows)
       if: contains(matrix.os, 'windows')
       run: |
         choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-        if "${{ matrix.compiler.name }}" == "mingw" choco install mingw -y
+        if "${{ matrix.compiler }}" == "mingw" choco install mingw -y
       shell: cmd
 
     - name: Configure CMake
       run: |
-        if [ "${{ matrix.compiler.name }}" == "mingw" ]; then
+        if [ "${{ matrix.compiler }}" == "mingw" ]; then
           cmake -S . -B build -G "MinGW Makefiles"
         else
           cmake -S . -B build
