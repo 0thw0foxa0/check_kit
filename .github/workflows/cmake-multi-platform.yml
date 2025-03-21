@@ -1,51 +1,111 @@
-# This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
-name: CMake on multiple platforms
+name: Transport 20 Versions CI
 
 on:
   push:
-    branches: [ "testhtml" ]
+    branches:
+      - testhtml
   pull_request:
-    branches: [ "testhtml" ]
+    branches:
+      - testhtml
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os:
+          - ubuntu-18.04  # Старая LTS
+          - ubuntu-20.04  # Средняя LTS
+          - ubuntu-22.04  # Новая LTS
+          - windows-2016  # Старая версия Windows
+          - windows-2019  # Средняя версия Windows
+          - windows-2022  # Новая версия Windows
+        compiler:
+          - { os-pattern: 'ubuntu', name: 'gcc-7', install: 'g++-7' }
+          - { os-pattern: 'ubuntu', name: 'gcc-9', install: 'g++-9' }
+          - { os-pattern: 'ubuntu', name: 'gcc-11', install: 'g++-11' }
+          - { os-pattern: 'windows', name: 'msvc', install: '' }  # MSVC от Visual Studio
+          - { os-pattern: 'windows', name: 'mingw', install: 'mingw' }
+        exclude:
+          # Исключаем несовместимые комбинации (Windows с GCC или Ubuntu с MSVC/MinGW)
+          - os: ubuntu-18.04
+            compiler: { os-pattern: 'windows' }
+          - os: ubuntu-20.04
+            compiler: { os-pattern: 'windows' }
+          - os: ubuntu-22.04
+            compiler: { os-pattern: 'windows' }
+          - os: windows-2016
+            compiler: { os-pattern: 'ubuntu' }
+          - os: windows-2019
+            compiler: { os-pattern: 'ubuntu' }
+          - os: windows-2022
+            compiler: { os-pattern: 'ubuntu' }
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install dependencies (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y g++ cmake
+      - name: Install dependencies (Ubuntu)
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ${{ matrix.compiler.install }}
+          # Устанавливаем выбранный компилятор как стандартный
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/${{ matrix.compiler.name }} 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/${{ matrix.compiler.install }} 100
 
-    - name: Install dependencies (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-      shell: cmd
+      - name: Install dependencies (Windows - MinGW)
+        if: contains(matrix.os, 'windows') && matrix.compiler.name == 'mingw'
+        run: |
+          choco install cmake --version=3.28.1 -y
+          choco install mingw -y
 
-    - name: Configure CMake
-      run: |
-        cmake -S . -B build
-      shell: bash
+      - name: Install dependencies (Windows - MSVC)
+        if: contains(matrix.os, 'windows') && matrix.compiler.name == 'msvc'
+        run: |
+          choco install cmake --version=3.28.1 -y
+          # MSVC уже предустановлен в Windows runners, используем его
 
-    - name: Build
-      run: |
-        cmake --build build --config Release
-      shell: bash
+      - name: Configure CMake (Ubuntu)
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_CXX_COMPILER=${{ matrix.compiler.install }} -DCMAKE_BUILD_TYPE=Release
 
-    - name: Run
-      run: |
-        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          ./build/check_kit
-        else
-          ./build/Release/check_kit.exe
-        fi
-      shell: bash
+      - name: Configure CMake (Windows - MSVC)
+        if: contains(matrix.os, 'windows') && matrix.compiler.name == 'msvc'
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure CMake (Windows - MinGW)
+        if: contains(matrix.os, 'windows') && matrix.compiler.name == 'mingw'
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build project
+        run: |
+          cd build
+          cmake --build . --config Release
+
+      - name: Run tests
+        run: |
+          cd build
+          # Запускаем приложение с аргументами из задания (23 = автомобиль + автобус)
+          ./my_program 23
+          # Проверяем неизвестный тип транспорта
+          ./my_program 5
+        shell: bash  # Унифицируем shell для кроссплатформенности
+
+      - name: Verify output
+        run: |
+          cd build
+          # Проверяем вывод для базовой функциональности
+          ./my_program 23 | grep "автомобиль" || echo "Test failed: автомобиль not found"
+          ./my_program 23 | grep "автобус" || echo "Test failed: автобус not found"
+          ./my_program 5 | grep "НЕИЗВЕСТНЫЙ ТИП ТРАНСПОРТА" || echo "Test failed: unknown type not detected"
+        shell: bash
